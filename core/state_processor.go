@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/parallel"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -80,9 +81,25 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	if beaconRoot := block.BeaconRoot(); beaconRoot != nil {
 		ProcessBeaconBlockRoot(*beaconRoot, vmenv, statedb)
 	}
+
+	//Brian: ----------------------------The hook---------------------------
+	parallel.BlockInfoHook("BlockHash", block.Hash())
+	parallel.BlockInfoHook("GasLimit", block.GasLimit())
+	//Brian: ----------------------------The hook---------------------------
+
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		msg, err := TransactionToMessage(tx, signer, header.BaseFee)
+
+		//Brian: ----------------------------The hook---------------------------
+		parallel.BlockInfoHook("TxHash", tx.Hash())
+		parallel.BlockInfoHook("From", msg.From)
+		parallel.BlockInfoHook("To", *msg.To)
+		parallel.BlockInfoHook("Value", msg.Value)
+		parallel.BlockInfoHook("GasPrice", msg.GasPrice)
+		parallel.BlockInfoHook("Data", msg.Data)
+		//Brian: ----------------------------The hook---------------------------
+
 		if err != nil {
 			return nil, nil, 0, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
 		}
@@ -94,6 +111,10 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
+
+		//Brian: ----------------------------The hook---------------------------
+		parallel.ResetTxInfo(i)
+		//Brian: ----------------------------The hook---------------------------
 	}
 	// Fail if Shanghai not enabled and len(withdrawals) is non-zero.
 	withdrawals := block.Withdrawals()
