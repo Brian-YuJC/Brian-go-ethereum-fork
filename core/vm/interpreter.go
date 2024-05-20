@@ -153,7 +153,7 @@ func NewEVMInterpreter(evm *EVM) *EVMInterpreter {
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
-	defer func() { in.evm.depth-- }()
+	defer func() { in.evm.depth-- }() //Brian：defer 会在 Run 函数 return 之后调用
 
 	// Make sure the readOnly is only set if we aren't in readOnly yet.
 	// This also makes sure that the readOnly flag isn't removed for child calls.
@@ -172,10 +172,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	}
 
 	var (
-		op          OpCode        // current opcode
-		mem         = NewMemory() // bound memory
-		stack       = newstack()  // local stack
-		callContext = &ScopeContext{
+		op          OpCode           // current opcode
+		mem         = NewMemory()    // bound memory
+		stack       = newstack()     // local stack
+		callContext = &ScopeContext{ //Brian: 创建一个运行时环境，即一个 contract 会分配新的 Memory、Stack
 			Memory:   mem,
 			Stack:    stack,
 			Contract: contract,
@@ -217,7 +217,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
 	// parent context.
-	for {
+	for { //Brian: 循环执行 opcode
 		if debug {
 			// Capture pre-execution values for tracing.
 			logged, pcCopy, gasCopy = false, pc, contract.Gas

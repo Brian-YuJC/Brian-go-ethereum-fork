@@ -165,6 +165,12 @@ func (c *CacheConfig) triedbConfig(isVerkle bool) *triedb.Config {
 	return config
 }
 
+// Brian Add
+// The getter of the triedbConfig function
+func (c *CacheConfig) TriedbConfig(isVerkle bool) *triedb.Config {
+	return c.triedbConfig(isVerkle)
+}
+
 // defaultCacheConfig are the default caching values if none are specified by the
 // user (also used during testing).
 var defaultCacheConfig = &CacheConfig{

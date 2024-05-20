@@ -230,16 +230,16 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	} else {
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
-		code := evm.StateDB.GetCode(addr)
+		code := evm.StateDB.GetCode(addr) //Brian: 这里的 addr 为 Transaction 中 To 的地址
 		if len(code) == 0 {
 			ret, err = nil, nil // gas is unchanged
 		} else {
 			addrCopy := addr
-			// If the account has no code, we can abort here
+			// If the account has no code, we can abort here // Brian：这里是否就是为了判断这个账号是 OA 还是 EOA？
 			// The depth-check is already done, and precompiles handled above
-			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
+			contract := NewContract(caller, AccountRef(addrCopy), value, gas) // Brian：创建一个新的Contract
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
-			ret, err = evm.interpreter.Run(contract, input, false)
+			ret, err = evm.interpreter.Run(contract, input, false) // Brian：如果 account 为 OA 执行当前合约！！！！,input为 Transaction 中的 Data
 			gas = contract.Gas
 		}
 	}
