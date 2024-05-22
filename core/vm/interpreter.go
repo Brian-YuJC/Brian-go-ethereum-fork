@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/parallel"
 	"github.com/holiman/uint256"
 )
 
@@ -151,6 +152,7 @@ func NewEVMInterpreter(evm *EVM) *EVMInterpreter {
 // considered a revert-and-consume-all-gas operation except for
 // ErrExecutionReverted which means revert-and-keep-gas-left.
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
+
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
 	defer func() { in.evm.depth-- }() //Brian：defer 会在 Run 函数 return 之后调用
@@ -213,6 +215,11 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			}
 		}()
 	}
+
+	//Brian: ----------------------------The hook---------------------------
+	parallel.BlockInfoHook("ContractAddr", contract.Address())
+	defer parallel.AfterRun()
+	//Brian: ----------------------------The hook---------------------------
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
@@ -299,6 +306,9 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}
 
 		// execute the operation
+		//Brian: ----------------------------The hook---------------------------
+		parallel.BlockInfoHook("Opcode", op.String())
+		//Brian: ----------------------------The hook---------------------------
 		res, err = operation.execute(&pc, in, callContext)
 		if err != nil {
 			break

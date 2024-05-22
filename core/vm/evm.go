@@ -187,6 +187,10 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
+// Brian: addr = Transaction.To -> st.To -> msg.To
+// Brian: input = Transaction.Data -> msg.Data
+// Brian: gas = st.gasRemaining
+// Brian: value = Transacction.Value -> msg.Value
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *uint256.Int) (ret []byte, leftOverGas uint64, err error) {
 	// Capture the tracer start/end events in debug mode
 	if evm.Config.Tracer != nil {
@@ -225,7 +229,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 	evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
 
-	if isPrecompile {
+	if isPrecompile { //Brian: 查看是否为以太坊预编译合约
 		ret, gas, err = RunPrecompiledContract(p, input, gas, evm.Config.Tracer)
 	} else {
 		// Initialise a new contract and set the code that is to be used by the EVM.
@@ -235,11 +239,12 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			ret, err = nil, nil // gas is unchanged
 		} else {
 			addrCopy := addr
-			// If the account has no code, we can abort here // Brian：这里是否就是为了判断这个账号是 OA 还是 EOA？
+			// If the account has no code, we can abort here // Brian：这里是否就是为了判断这个账号是 CA 还是 EOA？
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas) // Brian：创建一个新的Contract
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
-			ret, err = evm.interpreter.Run(contract, input, false) // Brian：如果 account 为 OA 执行当前合约！！！！,input为 Transaction 中的 Data
+			ret, err = evm.interpreter.Run(contract, input, false) // Brian：如果 account 为 CA 执行当前合约！！！！,input为 Transaction 中的 Data
+
 			gas = contract.Gas
 		}
 	}

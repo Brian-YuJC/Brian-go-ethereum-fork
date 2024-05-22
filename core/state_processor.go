@@ -112,9 +112,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 
-		//Brian: ----------------------------The hook---------------------------
-		parallel.ResetTxInfo(i)
-		//Brian: ----------------------------The hook---------------------------
 	}
 	// Fail if Shanghai not enabled and len(withdrawals) is non-zero.
 	withdrawals := block.Withdrawals()
