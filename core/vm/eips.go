@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/tracing"
+	"github.com/ethereum/go-ethereum/parallel"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
@@ -90,6 +91,9 @@ func enable1884(jt *JumpTable) {
 func opSelfBalance(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	balance := interpreter.evm.StateDB.GetBalance(scope.Contract.Address())
 	scope.Stack.push(balance)
+	//Brian: ----------------------------The hook---------------------------
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["SELFBALANCE"]+"SELFBALANCE "+string(scope.Contract.Address().Hex()))
+	//Brian: ----------------------------The hook---------------------------
 	return nil, nil
 }
 

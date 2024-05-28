@@ -94,7 +94,11 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		//Brian: ----------------------------The hook---------------------------
 		parallel.BlockInfoHook("TxHash", tx.Hash())
 		parallel.BlockInfoHook("From", msg.From)
-		parallel.BlockInfoHook("To", *msg.To)
+		if msg.To == nil { //说明是创建合约的 Transaction
+			parallel.BlockInfoHook("To", nil)
+		} else {
+			parallel.BlockInfoHook("To", *(msg.To))
+		}
 		parallel.BlockInfoHook("Value", msg.Value)
 		parallel.BlockInfoHook("GasPrice", msg.GasPrice)
 		parallel.BlockInfoHook("Data", msg.Data)
@@ -138,9 +142,11 @@ func ApplyTransactionWithEVM(msg *Message, config *params.ChainConfig, gp *GasPo
 	}
 	// Create a new context to be used in the EVM environment.
 	txContext := NewEVMTxContext(msg)
-	evm.Reset(txContext, statedb)
+	evm.Reset(txContext, statedb) //Brian: 设置 evm 的状态为当前全局状态，evm 在当前全局状态执行
 
 	// Apply the transaction to the current state (included in the env).
+	//Brian：完成Transaction运行环境搭建开始运行Transaction！！！！！！！！！！！！！！
+	//Brian：Transaction 运行环境有三部分：evm， Message 和 gasPool
 	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
 		return nil, err
@@ -151,7 +157,8 @@ func ApplyTransactionWithEVM(msg *Message, config *params.ChainConfig, gp *GasPo
 	if config.IsByzantium(blockNumber) {
 		statedb.Finalise(true)
 	} else {
-		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
+		//Brian: IntermediateRoot computes the current root hash of the state trie.
+		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes() //
 	}
 	*usedGas += result.UsedGas
 

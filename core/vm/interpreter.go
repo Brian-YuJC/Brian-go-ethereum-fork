@@ -305,10 +305,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			}
 		}
 
-		// execute the operation
 		//Brian: ----------------------------The hook---------------------------
 		parallel.BlockInfoHook("Opcode", op.String())
 		//Brian: ----------------------------The hook---------------------------
+		// execute the operation
 		res, err = operation.execute(&pc, in, callContext)
 		if err != nil {
 			break

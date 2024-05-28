@@ -907,6 +907,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 		if op.isDelete() {
 			deletedAddrs = append(deletedAddrs, addr)
 		} else {
+			//Brian: stateObject represents an Ethereum account which is being modified.
 			s.updateStateObject(s.stateObjects[addr])
 			s.AccountUpdated += 1
 		}

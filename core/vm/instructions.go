@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/parallel"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
@@ -259,6 +260,9 @@ func opBalance(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 	slot := scope.Stack.peek()
 	address := common.Address(slot.Bytes20())
 	slot.Set(interpreter.evm.StateDB.GetBalance(address))
+	//Brian: ----------------------------The hook---------------------------
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["BALANCE"]+"BALANCE "+string(address.Hex()))
+	//Brian: ----------------------------The hook---------------------------
 	return nil, nil
 }
 
@@ -513,6 +517,9 @@ func opSload(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]by
 	hash := common.Hash(loc.Bytes32())
 	val := interpreter.evm.StateDB.GetState(scope.Contract.Address(), hash)
 	loc.SetBytes(val.Bytes())
+	//Brian: ----------------------------The hook---------------------------
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["SLOAD"]+"SLOAD "+string(loc.Hex()))
+	//Brian: ----------------------------The hook---------------------------
 	return nil, nil
 }
 
@@ -523,6 +530,9 @@ func opSstore(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 	loc := scope.Stack.pop()
 	val := scope.Stack.pop()
 	interpreter.evm.StateDB.SetState(scope.Contract.Address(), loc.Bytes32(), val.Bytes32())
+	//Brian: ----------------------------The hook---------------------------
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["SSTORE"]+"SSTORE "+string(loc.Hex())+" "+string(val.Hex()))
+	//Brian: ----------------------------The hook---------------------------
 	return nil, nil
 }
 
@@ -611,6 +621,14 @@ func opCreate(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]b
 		return res, nil
 	}
 	interpreter.returnData = nil // clear dirty return data buffer
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取创建的新合约的地址和转账金额（因为应该只有 Call 和 Create Create2 会发生转账行为）
+	doTransfer := "doTransfer_false"
+	if value.Sign() > 0 {
+		doTransfer = "doTransfer_true"
+	}
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["CREATE"]+"CREATE "+string(addr.Hex())+" "+doTransfer)
+	//Brian: ----------------------------The hook---------------------------
 	return nil, nil
 }
 
@@ -647,6 +665,14 @@ func opCreate2(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 		return res, nil
 	}
 	interpreter.returnData = nil // clear dirty return data buffer
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取创建的新合约的地址和转账金额（因为应该只有 Call 和 Create Create2 会发生转账行为）
+	doTransfer := "doTransfer_false"
+	if endowment.Sign() > 0 {
+		doTransfer = "doTransfer_true"
+	}
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["CREATE2"]+"CREATE2 "+string(addr.Hex())+" "+doTransfer)
+	//Brian: ----------------------------The hook---------------------------
 	return nil, nil
 }
 
@@ -668,6 +694,16 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byt
 	if !value.IsZero() {
 		gas += params.CallStipend
 	}
+
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取调用的地址和转账金额
+	doTransfer := "doTransfer_false"
+	if value.Sign() > 0 {
+		doTransfer = "doTransfer_true"
+	}
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["CALL"]+"CALL "+string(addr.Hex())+" "+doTransfer)
+	//Brian: ----------------------------The hook---------------------------
+
 	ret, returnGas, err := interpreter.evm.Call(scope.Contract, toAddr, args, gas, &value)
 
 	if err != nil {
@@ -702,6 +738,12 @@ func opCallCode(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([
 		gas += params.CallStipend
 	}
 
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取调用的地址
+	//可能只会读写合约中不可改变的 code 部分暂时忽略
+	//parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["CALLCODE"]+"CALLCODE address:"+string(addr.Hex()))
+	//Brian: ----------------------------The hook---------------------------
+
 	ret, returnGas, err := interpreter.evm.CallCode(scope.Contract, toAddr, args, gas, &value)
 	if err != nil {
 		temp.Clear()
@@ -731,6 +773,12 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取调用的地址
+	//可能只会读写合约中不可改变的 code 部分暂时忽略
+	//parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["DELEGATECALL"]+"DELEGATECALL "+string(addr.Hex()))
+	//Brian: ----------------------------The hook---------------------------
+
 	ret, returnGas, err := interpreter.evm.DelegateCall(scope.Contract, toAddr, args, gas)
 	if err != nil {
 		temp.Clear()
@@ -745,6 +793,7 @@ func opDelegateCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 	scope.Contract.RefundGas(returnGas, interpreter.evm.Config.Tracer, tracing.GasChangeCallLeftOverRefunded)
 
 	interpreter.returnData = ret
+
 	return ret, nil
 }
 
@@ -759,6 +808,12 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) 
 	toAddr := common.Address(addr.Bytes20())
 	// Get arguments from the memory.
 	args := scope.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
+
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取调用的地址
+	//可能只会读写合约中不可改变的 code 部分暂时忽略
+	//parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["STATICCALL"]+"STATICCALL "+string(addr.Hex()))
+	//Brian: ----------------------------The hook---------------------------
 
 	ret, returnGas, err := interpreter.evm.StaticCall(scope.Contract, toAddr, args, gas)
 	if err != nil {
@@ -816,6 +871,10 @@ func opSelfdestruct(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext
 			tracer.OnExit(interpreter.evm.depth, []byte{}, 0, nil, false)
 		}
 	}
+	//Brian: ----------------------------The hook---------------------------
+	//只勾取调用地址
+	parallel.BlockInfoHook("KeyOpcode", parallel.OpcodeMap["SELFDESTRUCT"]+"SELFDESTRUCT "+string(beneficiary.Hex()))
+	//Brian: ----------------------------The hook---------------------------
 	return nil, errStopToken
 }
 
