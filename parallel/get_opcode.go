@@ -43,14 +43,15 @@ type ContractInfo struct {
 
 // Transaction information 结构体里面记录了我们想要记录的数据
 type TransactionInfo struct {
-	TxHash    common.Hash    //Transaction 的 Hash
-	From      common.Address // Transaction sender 的 Address
-	To        common.Address //Transaction 发往的Address
-	Value     *big.Int       //Transaction 中交易金额
-	Fee       *big.Int
-	GasPrice  *big.Int
-	Data      []byte         //Transaction 携带的 Data
-	CallQueue []ContractInfo //该 Transaction 调用smart contract的调用栈
+	TxHash          common.Hash    //Transaction 的 Hash
+	From            common.Address // Transaction sender 的 Address
+	To              string         //Transaction 发往的Address
+	NewContractAddr common.Address //如果是创建新合约的 Transaction 需要返回新合约地址
+	Value           *big.Int       //Transaction 中交易金额
+	Fee             *big.Int
+	GasPrice        *big.Int
+	Data            []byte         //Transaction 携带的 Data
+	CallQueue       []ContractInfo //该 Transaction 调用smart contract的调用栈
 }
 
 type BlockInfo struct {
@@ -155,10 +156,20 @@ func TransactionInfoHook(name string, data interface{}) {
 			print("👎[TransactionInfoHook] From not match common.Address type")
 		}
 	case "To":
+		if data == nil { //如果 To 为 nil 则说明是合约创建的 Transaction
+			txInfo.To = "nil"
+		} else { //To 地址不为空为正常的 Transaction
+			if data, ok := data.(common.Address); ok {
+				txInfo.To = data.Hex()
+			} else {
+				print("👎[TransactionInfoHook] To not match common.Address type")
+			}
+		}
+	case "NewContractAddr":
 		if data, ok := data.(common.Address); ok {
-			txInfo.To = data
+			txInfo.NewContractAddr = data
 		} else {
-			print("👎[TransactionInfoHook] To not match common.Address type")
+			print("👎[TransactionInfoHook] NewContractAddr not match common.Address type")
 		}
 	case "Value":
 		if data, ok := data.(*big.Int); ok {

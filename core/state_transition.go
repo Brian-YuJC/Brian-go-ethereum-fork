@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
+	"github.com/ethereum/go-ethereum/parallel"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 )
@@ -437,7 +438,15 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
 	)
 	if contractCreation {
-		ret, _, st.gasRemaining, vmerr = st.evm.Create(sender, msg.Data, st.gasRemaining, value)
+		//Brian: ----------------------------Add some code---------------------------
+		var contractAddr common.Address
+		//Brian: ----------------------------Add some code---------------------------
+		//Brian: Add the return of the new contract address
+		ret, contractAddr, st.gasRemaining, vmerr = st.evm.Create(sender, msg.Data, st.gasRemaining, value)
+		//Brian: ----------------------------The hook---------------------------
+		//如果是新合约创建 Transaction 则勾取新合约的地址信息
+		parallel.BlockInfoHook("NewContractAddr", contractAddr)
+		//Brian: ----------------------------The hook---------------------------
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From, st.state.GetNonce(sender.Address())+1)
