@@ -73,7 +73,7 @@ func (g *Graph) AddEdge(from int, to string, op string) {
 	}
 }
 
-// 根据 Hook 的信息建图
+// 根据 Hook 的信息建图（只要是有读写关系的 Account 都与 Transaction 建边）
 func BuildGraph() *Graph {
 
 	//创建图数据结构
@@ -189,5 +189,4 @@ func OutputGraph() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 }
