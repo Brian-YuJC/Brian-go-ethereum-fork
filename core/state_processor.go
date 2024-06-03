@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -147,7 +148,17 @@ func ApplyTransactionWithEVM(msg *Message, config *params.ChainConfig, gp *GasPo
 	// Apply the transaction to the current state (included in the env).
 	//Brian：完成Transaction运行环境搭建开始运行Transaction！！！！！！！！！！！！！！
 	//Brian：Transaction 运行环境有三部分：evm， Message 和 gasPool
+	//Brian: ----------------------------The hook---------------------------
+	startTime := time.Now()
+	//Brian: ----------------------------The hook---------------------------
+
 	result, err := ApplyMessage(evm, msg, gp)
+
+	//Brian: ----------------------------The hook---------------------------
+	endTime := time.Now()
+	parallel.TxExecuteTime = append(parallel.TxExecuteTime, float64(endTime.Sub(startTime).Microseconds())) //单位微秒
+	//Brian: ----------------------------The hook---------------------------
+
 	if err != nil {
 		return nil, err
 	}

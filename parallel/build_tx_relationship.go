@@ -18,7 +18,100 @@ func HaveRelation(tx string, txBefore string, tx_account_map map[string]map[stri
 	return false
 }
 
-func BuildTxRelationGraph() {
+// 打印并行顺序
+func PrintParallelOrder(orderMap []int, txNum int, originalOrderMap []int) {
+
+	//-----------------------Method 2 Using Order Map------------------------------
+	fmt.Println("-------------------------------Print Parallel Order-------------------------------")
+	batch := 0
+	execTxNum := 0 //执行完的交易数量
+	for true {
+		//fmt.Println(execTxNum)
+		if execTxNum == txNum { //全部 Tx 执行完毕
+			break
+		}
+
+		batch++
+		var parallelSet = make([]bool, txNum) //判断当前轮次内执行过的 Tx
+		var n = 0                             //本轮执行的 Tx 数量
+		for tx, value := range orderMap {
+			if value == -1 { //交易 i 没有前置交易，可以执行
+				execTxNum++
+				n++
+				orderMap[tx] = -2 //已经执行过的标志
+				parallelSet[tx] = true
+			}
+		}
+
+		//维护orderMap
+		for tx, lastDependency := range orderMap {
+			if lastDependency != -2 {
+				if parallelSet[lastDependency] { //如果前置的依赖已经被执行了，即表示该交易下一轮可以执行了
+					orderMap[tx] = -1
+				}
+			}
+		}
+
+		fmt.Println("Parallel Execution Round: ", batch)
+		fmt.Printf("The number of Transaction can be parallelly executed: %d\n", n)
+		for tx, value := range parallelSet {
+			if value {
+				fmt.Print(tx)
+				if originalOrderMap[tx] != -1 {
+					fmt.Print("\t(After Tx ", originalOrderMap[tx], " is executed)")
+				}
+				fmt.Println()
+			}
+		}
+		fmt.Println()
+	}
+}
+
+// 获取并行最优加速比（cpu 数量没有上限）
+func GetMaxiumSpeedUp(orderMap []int) float64 {
+
+	//Check for correctness!!!!!!!!!!!!
+	fmt.Println("\nGetMaxiumSpeedUp()")                                             //Check for correctness!!!!!!!!!!!!
+	print("-------------------------Print Execution Time-------------------------") //Check for correctness!!!!!!!!!!!!
+	for i, value := range TxExecuteTime {
+		fmt.Printf("Tx %d execution time: ", i)
+		fmt.Print(value, "\n")
+	}
+
+	// 计算加速比
+	var LinearExecuteTime float64 = 0 //线性执行时间
+	for _, time := range TxExecuteTime {
+		LinearExecuteTime += time
+	}
+
+	var MaxParallelExecTime float64 = 0 //并行的最大运行时间
+	for i, _ := range orderMap {
+		var t float64 = 0
+		currentTx := i
+		for true {
+			fmt.Print(currentTx, " <- ") //Check for correctness!!!!!!!!!!!!
+			t += TxExecuteTime[currentTx]
+			if orderMap[currentTx] == -1 {
+				break
+			}
+			currentTx = orderMap[currentTx]
+		}
+		fmt.Print("Total Time: ", t, "\n") //Check for correctness!!!!!!!!!!!!
+		MaxParallelExecTime = max(MaxParallelExecTime, t)
+	}
+
+	fmt.Print("MaxParallelExecTime: ", MaxParallelExecTime, "\n")       //Check for correctness!!!!!!!!!!!!
+	fmt.Print("LinearExecuteTime: ", LinearExecuteTime, "\n")           //Check for correctness!!!!!!!!!!!!
+	fmt.Print("SpeedUp: ", LinearExecuteTime/MaxParallelExecTime, "\n") //Check for correctness!!!!!!!!!!!!
+
+	var SpeedUp float64 = LinearExecuteTime / MaxParallelExecTime
+
+	return SpeedUp
+}
+
+// 计算 Transaction 两两之间有无依赖关系
+// 返回值是tx-tx之间关系，调用顺序 map 和 加速比
+func BuildTxRelationGraph() ([][]string, []int, float64) {
 	//先建立一张关系图，从关系图中再建立 Transaction 之间的关系
 	g := BuildGraph()
 
@@ -65,8 +158,11 @@ func BuildTxRelationGraph() {
 
 	//Print Tx Tx relationship
 	fmt.Println("-------------------------------Print Dependency-------------------------------")
-	num := len(txList)
-	var list [][]string = make([][]string, num)
+	txNum := len(txList) //交易总数
+	//-------------------------------------------------Final Result----------------------------------------------------------
+	var list [][]string = make([][]string, txNum) //存放地 i 个 Transaction 和与之关连的 Transaction
+	var orderMap = make([]int, txNum)             //存放执行某个Transaction 之前必须完成执行的最后一个依赖交易（即执行完此依赖交易才可以执行此交易） tx-dependent tx
+	//-------------------------------------------------Final Result----------------------------------------------------------
 	for k1, v1 := range tx_tx_map {
 		var t []string
 		for k2, _ := range v1 {
@@ -81,6 +177,16 @@ func BuildTxRelationGraph() {
 			K, _ := strconv.Atoi(list[i][k])
 			return J < K
 		})
+
+		//维护 orderMap
+		if len(list[i]) == 0 { //没有前置依赖交易
+			orderMap[i] = -1
+		} else {
+			t, _ := strconv.Atoi(list[i][len(list[i])-1])
+			orderMap[i] = t //选取序号最大的交易
+		}
+
+		//打印依赖结果
 		fmt.Printf("Tx: %d\nDependent Tx: ", i)
 		for j := 0; j < len(list[i]); j++ {
 			fmt.Print(list[i][j], " ")
@@ -88,53 +194,60 @@ func BuildTxRelationGraph() {
 		fmt.Println("\n")
 	}
 
+	//	打印信息
+	var orderMapCopy = make([]int, txNum)
+	copy(orderMapCopy, orderMap)
+	PrintParallelOrder(orderMapCopy, txNum, orderMap)
+
+	//-----------------------Get Parallel Order Method 1------------------------------
 	//打印并行顺序
-	fmt.Println("-------------------------------Print Parallel Order-------------------------------")
-	batch := 0
-	frontTx := make(map[string]string) //存放合约执行的前置合约（就是必须先执行完前置合约才能执行当前合约，不然有冲突）
-	for true {
-		if len(tx_tx_map) == 0 { //如果未执行的 Transaction空了则跳出循环
-			break
-		}
+	// fmt.Println("-------------------------------Print Parallel Order-------------------------------")
+	// batch := 0
+	// frontTx := make(map[string]string) //存放合约执行的前置合约（就是必须先执行完前置合约才能执行当前合约，不然有冲突）
+	// for true {
+	// 	if len(tx_tx_map) == 0 { //如果未执行的 Transaction空了则跳出循环
+	// 		break
+	// 	}
 
-		batch++
-		var parallelSet []string //本批执行的列表
-		for tx, dependency := range tx_tx_map {
-			//fmt.Print(tx, "->", len(dependency), " ")
-			if len(dependency) == 0 { //出度为 0
-				parallelSet = append(parallelSet, tx) //加入并行
-				delete(tx_tx_map, tx)                 //从 map 中移除
-			}
-		}
+	// 	batch++
+	// 	var parallelSet []string //本批执行的列表
+	// 	for tx, dependency := range tx_tx_map {
+	// 		//fmt.Print(tx, "->", len(dependency), " ")
+	// 		if len(dependency) == 0 { //出度为 0
+	// 			parallelSet = append(parallelSet, tx) //加入并行
+	// 			delete(tx_tx_map, tx)                 //从 map 中移除
+	// 		}
+	// 	}
 
-		//更新维护剩余 Transaction 与 Transaction 之间的关连(删除与已经加入并行的 Transaction 的关连)
-		for _, deletedTx := range parallelSet {
-			for tx, dependency := range tx_tx_map {
-				if _, ok := dependency[deletedTx]; ok && len(dependency) == 1 { //如果只剩一个依赖，而且该依赖以及执行则该依赖为前置合约
-					frontTx[tx] = deletedTx
-				}
-				delete(dependency, deletedTx)
-			}
-		}
+	// 	//更新维护剩余 Transaction 与 Transaction 之间的关连(删除与已经加入并行的 Transaction 的关连)
+	// 	for _, deletedTx := range parallelSet {
+	// 		for tx, dependency := range tx_tx_map {
+	// 			if _, ok := dependency[deletedTx]; ok && len(dependency) == 1 { //如果只剩一个依赖，而且该依赖以及执行则该依赖为前置合约
+	// 				frontTx[tx] = deletedTx
+	// 			}
+	// 			delete(dependency, deletedTx)
+	// 		}
+	// 	}
 
-		//Print Result
-		sort.Slice(parallelSet, func(i, j int) bool { //按 Tx 先后排个序（为了展示目的）
-			I, _ := strconv.Atoi(parallelSet[i])
-			J, _ := strconv.Atoi(parallelSet[j])
-			return I < J
-		})
-		fmt.Println("Parallel Execution Round: ", batch)
-		fmt.Printf("The number of Transaction can be parallelly executed: %d\n", len(parallelSet))
-		for _, tx := range parallelSet {
-			if len(frontTx[tx]) > 0 {
-				fmt.Print(tx, "\t(After Tx ", frontTx[tx], " is executed)\n")
-			} else {
-				fmt.Println(tx)
-			}
-		}
-		fmt.Println("\n")
-	}
+	// 	//Print Result
+	// 	sort.Slice(parallelSet, func(i, j int) bool { //按 Tx 先后排个序（为了展示目的）
+	// 		I, _ := strconv.Atoi(parallelSet[i])
+	// 		J, _ := strconv.Atoi(parallelSet[j])
+	// 		return I < J
+	// 	})
+	// 	fmt.Println("Parallel Execution Round: ", batch)
+	// 	fmt.Printf("The number of Transaction can be parallelly executed: %d\n", len(parallelSet))
+	// 	for _, tx := range parallelSet {
+	// 		if len(frontTx[tx]) > 0 {
+	// 			fmt.Print(tx, "\t(After Tx ", frontTx[tx], " is executed)\n")
+	// 		} else {
+	// 			fmt.Println(tx)
+	// 		}
+	// 	}
+	// 	fmt.Println("\n")
+	// }
 
+	return list, orderMap, GetMaxiumSpeedUp(orderMap)
 }
 
 // 只保留会导致Transaction并行冲突的 Account（如果一个 Account 与两个 Transaction 关连则需保留这个节点）

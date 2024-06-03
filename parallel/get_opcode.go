@@ -264,3 +264,6 @@ func AfterRun() {
 		contractInfo = ContractInfo{ContractAddr: AddrStack.top().(common.Address), Layer: AddrStack.size(), isNewTx: false} //新建一个contract Info实例
 	}
 }
+
+// 记录每笔交易执行时间的 Map
+var TxExecuteTime []float64
