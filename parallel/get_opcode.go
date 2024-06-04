@@ -99,7 +99,7 @@ func (s *Stack) size() int {
 }
 
 // 实例化一个全局 Block Information 对象
-var blockInfo BlockInfo = BlockInfo{}
+var blockInfo = BlockInfo{}
 
 // blockInfo getter
 func GetBlockInfo() *BlockInfo {
@@ -107,7 +107,7 @@ func GetBlockInfo() *BlockInfo {
 }
 
 // 实例化一个全局 Transaction Information 对象
-var txInfo TransactionInfo = TransactionInfo{}
+var txInfo = TransactionInfo{}
 
 // 实例化一个全局 Contract Information 对象
 var contractInfo = ContractInfo{}
@@ -121,6 +121,9 @@ var AddrStack = Stack{}
 func BlockInfoHook(name string, data interface{}) {
 	switch name {
 	case "BlockHash":
+		//---------------------------------------DEBUG 留意---------------------------------------
+		ResetHook() //每读到一个新的 BlockHash表示读取到新块要初始化钩子
+		//---------------------------------------DEBUG 留意---------------------------------------
 		if data, ok := data.(common.Hash); ok {
 			blockInfo.BlockHash = data
 		} else {
@@ -142,7 +145,9 @@ func TransactionInfoHook(name string, data interface{}) {
 	switch name {
 	case "TxHash":
 		if data, ok := data.(common.Hash); ok {
-			resetTxInfo()                              //接受到新的 Transaction Address 自动回调
+			//---------------------------------------DEBUG 留意---------------------------------------
+			resetTxInfo() //收到新的 Transaction Hash 表示接受到新的 Transaction Address 自动回调
+			//---------------------------------------DEBUG 留意---------------------------------------
 			AddrStack.clear()                          //初始化调用栈
 			contractInfo = ContractInfo{isNewTx: true} //初始化 ContractInfos
 			txInfo.TxHash = data
@@ -263,6 +268,15 @@ func AfterRun() {
 	if !AddrStack.isEmpty() {
 		contractInfo = ContractInfo{ContractAddr: AddrStack.top().(common.Address), Layer: AddrStack.size(), isNewTx: false} //新建一个contract Info实例
 	}
+}
+
+// 重置该钩子的全局变量,在下一个 Block 执行前调用
+func ResetHook() {
+	blockInfo = BlockInfo{}
+	txInfo = TransactionInfo{}
+	contractInfo = ContractInfo{}
+	AddrStack = Stack{}
+	TxExecuteTime = make([]float64, 0)
 }
 
 // 记录每笔交易执行时间的 Map
