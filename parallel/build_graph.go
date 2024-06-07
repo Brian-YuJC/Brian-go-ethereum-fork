@@ -171,7 +171,7 @@ func BuildGraph() *Graph {
 }
 
 // 将 Graph 导出为 Json 格式
-func OutputGraph() {
+func OutputGraph(path string, fileName string) {
 	graph := BuildGraph()
 
 	jsonData, err := json.Marshal(graph)
@@ -179,7 +179,7 @@ func OutputGraph() {
 		fmt.Println(err)
 	}
 
-	file, err := os.Create("./output/relationship_graph.json")
+	file, err := os.Create(path + "/" + fileName)
 	if err != nil {
 		fmt.Println(err)
 	}

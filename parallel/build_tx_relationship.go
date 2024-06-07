@@ -70,9 +70,9 @@ func PrintParallelOrder(orderMap []int, txNum int, originalOrderMap []int) {
 // 获取并行最优加速比（cpu 数量没有上限）
 func GetMaxiumSpeedUp(orderMap []int) float64 {
 
-	//Check for correctness!!!!!!!!!!!!
-	fmt.Println("\nGetMaxiumSpeedUp()")                                             //Check for correctness!!!!!!!!!!!!
-	print("-------------------------Print Execution Time-------------------------") //Check for correctness!!!!!!!!!!!!
+	//Use to Check for correctness!!!!!!!!!!!!
+	fmt.Println("\nGetMaxiumSpeedUp()")                                             //Use to Check for correctness!!!!!!!!!!!!
+	print("-------------------------Print Execution Time-------------------------") //Use to Check for correctness!!!!!!!!!!!!
 	for i, value := range TxExecuteTime {
 		fmt.Printf("Tx %d execution time: ", i)
 		fmt.Print(value, "\n")
@@ -89,20 +89,20 @@ func GetMaxiumSpeedUp(orderMap []int) float64 {
 		var t float64 = 0
 		currentTx := i
 		for true {
-			fmt.Print(currentTx, " <- ") //Check for correctness!!!!!!!!!!!!
+			fmt.Print(currentTx, " <- ") //Use to Check for correctness!!!!!!!!!!!!
 			t += TxExecuteTime[currentTx]
 			if orderMap[currentTx] == -1 {
 				break
 			}
 			currentTx = orderMap[currentTx]
 		}
-		fmt.Print("Total Time: ", t, "\n") //Check for correctness!!!!!!!!!!!!
+		fmt.Print("Total Time: ", t, "\n") //Use to Check for correctness!!!!!!!!!!!!
 		MaxParallelExecTime = max(MaxParallelExecTime, t)
 	}
 
-	fmt.Print("MaxParallelExecTime: ", MaxParallelExecTime, "\n")       //Check for correctness!!!!!!!!!!!!
-	fmt.Print("LinearExecuteTime: ", LinearExecuteTime, "\n")           //Check for correctness!!!!!!!!!!!!
-	fmt.Print("SpeedUp: ", LinearExecuteTime/MaxParallelExecTime, "\n") //Check for correctness!!!!!!!!!!!!
+	fmt.Print("MaxParallelExecTime: ", MaxParallelExecTime, "\n")       //Use to Check for correctness!!!!!!!!!!!!
+	fmt.Print("LinearExecuteTime: ", LinearExecuteTime, "\n")           //Use to Check for correctness!!!!!!!!!!!!
+	fmt.Print("SpeedUp: ", LinearExecuteTime/MaxParallelExecTime, "\n") //Use to Check for correctness!!!!!!!!!!!!
 
 	var SpeedUp float64 = LinearExecuteTime / MaxParallelExecTime
 
