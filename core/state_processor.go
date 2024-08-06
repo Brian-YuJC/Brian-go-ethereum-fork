@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/parallel"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -67,6 +68,10 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		allLogs     []*types.Log
 		gp          = new(GasPool).AddGas(block.GasLimit())
 	)
+
+	//parallel.CurrentBlockNum = block.Number().Int64() //Brian Add
+	parallel.Op_channel <- parallel.Msg{Opcode: "BlockNumber", Run_time: block.Number().Int64(), WriteFilePtr: parallel.WriteFile} //Brian Add
+
 	// Mutate the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)

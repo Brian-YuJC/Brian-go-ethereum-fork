@@ -17,10 +17,13 @@
 package vm
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/parallel"
 )
 
 // Config are the configuration options for the Interpreter
@@ -227,7 +230,17 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			logged = true
 		}
 		// execute the operation
+		start_time := time.Now() //Ben Add
 		res, err = operation.execute(&pc, in, callContext)
+		end_time := time.Now()                                 //Ben Add
+		get_duration := end_time.Sub(start_time).Nanoseconds() //Ben Add
+
+		op_str := op.String()    //Ben Add
+		if op_str != "INVALID" { //Ben Add
+			//parallel.Update_total_op_count_and_time(op_str, get_duration) //Ben Add
+			parallel.Op_channel <- parallel.Msg{Opcode: op_str, Run_time: get_duration, WriteFilePtr: nil} //Brian Add
+		}
+
 		if err != nil {
 			break
 		}

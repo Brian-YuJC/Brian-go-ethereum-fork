@@ -16,10 +16,6 @@
 
 package vm
 
-import (
-	"fmt"
-)
-
 // OpCode is an EVM opcode
 type OpCode byte
 
@@ -401,7 +397,9 @@ func (op OpCode) String() string {
 	if s := opCodeToString[op]; s != "" {
 		return s
 	}
-	return fmt.Sprintf("opcode %#x not defined", int(op))
+	// Brian Modify: 这里因为方便判断直接返回INVALID
+	//return fmt.Sprintf("opcode %#x not defined", int(op))
+	return "INVALID"
 }
 
 var stringToOp = map[string]OpCode{
